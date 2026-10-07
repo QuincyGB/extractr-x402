@@ -104,3 +104,73 @@ well above sub-cent Base settlement cost. One-line change via
   issues before debugging our code.
 - Costs to run: ~$0–5/mo hosting; facilitator takes no cut on Base USDC
   (Coinbase currently subsidizes); only Base gas per settlement (cents).
+
+---
+
+## 6. Arc port (branch `arc`, 2026-10-07)
+
+Extractr ported to **Circle's Arc mainnet** (`eip155:5042`, USDC is the
+native gas token) so it can earn on a second x402 rail — and so it qualifies
+for the **Arc Microgrants** ($500 USDC × 20, deadline Oct 14, 2026;
+submit a working Arc-mainnet deploy + public repo). Branch `arc` on
+`QuincyGB/extractr-x402`; `master` (Base deployment) untouched.
+
+**What changed** (all in branch `arc`, no Base behavior altered):
+- `app/config.py` — added `ARC_MAINNET = "eip155:5042"` and
+  `ARC_FACILITATOR_URL = "https://facilitator.ultravioletadao.xyz"`.
+  Facilitator selection is now: explicit `X402_FACILITATOR_URL` wins →
+  Base mainnet → CDP (needs keys) → **Arc mainnet → ultravioletadao
+  (keyless)** → anything else → x402.org public facilitator (testnets).
+  Added `NETWORK_LABELS` so discovery surfaces name the chain correctly.
+- `app/main.py` — log line now prints facilitator URL + network; docstring
+  no longer says "USDC on Base".
+- `app/discovery.py` — `skill.md` names the chain from `NETWORK_LABELS`
+  ("Arc (`eip155:5042`)") instead of hardcoding "Base". Manifest/quote/
+  debug already read everything from settings.
+- `tests/test_arc_config.py` — 6 new tests: Arc resolves to eip155:5042 +
+  ultravioletadao URL with `use_cdp=False`; no CDP keys required; Base
+  mainnet still fails fast without keys (regression guard); the 402
+  challenge carries `network=eip155:5042`, `payTo` = owner's wallet,
+  `amount="20000"` ($0.02), `asset=0x3600…0000` (Arc USDC precompile), and
+  the Bazaar discovery extension intact; manifest + skill.md name Arc.
+
+**Why ultravioletadao, not CDP or Circle's Gateway:**
+- CDP's facilitator only settles Base/Polygon/Arbitrum — not Arc.
+- Circle's own x402 Gateway lists Arc in payment requirements, but public
+  Arc settlement was unavailable (their words: "Arc Mainnet is included in
+  the x402 payment requirements, but live Arc payment settlement is
+  currently unavailable through the public Circle Gateway").
+- `https://facilitator.ultravioletadao.xyz/supported` (queried live
+  2026-10-07) serves `eip155:5042` with the x402 **v1 + v2 `exact`** scheme,
+  USDC `0x3600000000000000000000000000000000000000` (6 decimals) — verified
+  end-to-end: an unpaid `POST /v1/extract` under `X402_NETWORK=eip155:5042`
+  returns a well-formed 402 naming the Arc asset and the owner's wallet.
+  No API keys, no signup.
+
+**Env vars for the Arc Railway service** (nothing else needed):
+- `X402_NETWORK=eip155:5042`
+- `X402_PAY_TO=0x097f9685D1e0752bF8B02d61E5Ce9be7eA0FBA7F`
+  (same address works on Arc; default already this — set explicitly anyway)
+- `X402_SERVICE_NAME=extractr-arc` (optional; ≤32 chars; keeps the two
+  deployments distinguishable in Bazaar/indexers)
+- Do **not** set `CDP_API_KEY_ID/SECRET` on the Arc service (unused there).
+- Optional override: `X402_FACILITATOR_URL` if a different Arc facilitator
+  is ever preferred.
+
+**How to verify after deploy:**
+1. `GET /health` → `{"ok":true,"service":"extractr-arc"}`
+2. Unpaid `POST /v1/extract` → **402**; decode the `payment-required`
+   header → `accepts[0].network == "eip155:5042"`,
+   `accepts[0].payTo == "0x097f9685D1e0752bF8B02d61E5Ce9be7eA0FBA7F"`,
+   `accepts[0].amount == "20000"` ($0.02)
+3. `GET /.well-known/x402` → `"network": "eip155:5042"`
+4. `GET /debug` → `"facilitator": "https://facilitator.ultravioletadao.xyz"`
+5. One real $0.02 paid call (his wallet) → triggers agentic.market
+   indexing (~6h) and proves settlement works on Arc.
+
+**Arc-specific notes:**
+- Gas is paid in USDC (18-decimal native precision); keep a few cents of
+  USDC on the payout wallet for settlement gas.
+- Microgrant submission: https://dorahacks.io/hackathon/arc-microgrants/detail
+  — deploy link + public repo (`QuincyGB/extractr-x402`, branch `arc`).
+  Deadline: Oct 14, 2026.

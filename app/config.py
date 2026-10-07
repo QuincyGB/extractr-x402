@@ -23,11 +23,25 @@ PLACEHOLDER_WALLETS = {
 
 BASE_MAINNET = "eip155:8453"
 BASE_SEPOLIA = "eip155:84532"
+ARC_MAINNET = "eip155:5042"
+
+# Human-readable chain labels for discovery surfaces (skill.md etc.).
+NETWORK_LABELS = {
+    BASE_MAINNET: "Base",
+    BASE_SEPOLIA: "Base Sepolia",
+    ARC_MAINNET: "Arc",
+}
 
 # Public facilitator: testnets only (Base Sepolia, Solana devnet, ...).
 # Mainnet (Base) requires the CDP facilitator + API keys (owner step).
 PUBLIC_FACILITATOR_URL = "https://x402.org/facilitator"
 CDP_FACILITATOR_URL = "https://api.cdp.coinbase.com/platform/v2/x402"
+# Arc mainnet facilitator: ultravioletadao's public x402 facilitator.
+# Verified 2026-10-07 via its /supported endpoint: serves eip155:5042 with
+# the x402 v1 + v2 "exact" scheme, USDC 0x3600...0000 (6 decimals), no keys.
+# (CDP's facilitator only settles Base/Polygon/Arbitrum — not Arc.
+# Circle's own Gateway lists Arc but public settlement was unavailable.)
+ARC_FACILITATOR_URL = "https://facilitator.ultravioletadao.xyz"
 
 
 @dataclass(frozen=True)
@@ -65,6 +79,7 @@ def load_settings() -> Settings:
 
     # Facilitator selection is network-aware:
     #  - Base mainnet  -> CDP facilitator (needs API keys from portal.cdp.coinbase.com)
+    #  - Arc mainnet   -> ultravioletadao public facilitator (no keys; CDP doesn't settle Arc)
     #  - Testnets      -> public x402.org facilitator (no keys, free end-to-end testing)
     # An explicit X402_FACILITATOR_URL overrides the default choice.
     explicit_facilitator = os.environ.get("X402_FACILITATOR_URL", "").strip()
@@ -83,6 +98,8 @@ def load_settings() -> Settings:
             )
         facilitator_url = CDP_FACILITATOR_URL
         use_cdp = True
+    elif network == ARC_MAINNET:
+        facilitator_url = ARC_FACILITATOR_URL
     else:
         facilitator_url = PUBLIC_FACILITATOR_URL
 

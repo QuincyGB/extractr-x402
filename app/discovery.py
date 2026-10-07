@@ -6,7 +6,7 @@ live 402 responses, so they must stay consistent with main.py pricing.
 
 from __future__ import annotations
 
-from .config import Settings
+from .config import Settings, NETWORK_LABELS
 
 
 def x402_manifest(settings: Settings, base_url: str) -> dict:
@@ -56,10 +56,11 @@ def x402_manifest(settings: Settings, base_url: str) -> dict:
 
 
 def skill_md(settings: Settings, base_url: str) -> str:
+    chain = NETWORK_LABELS.get(settings.network, settings.network)
     return f"""# {settings.service_name} — paid web page extraction (x402)
 
 Turn any public web page into clean text + summary. Pay {settings.price_usdc} USDC
-per call on Base (`{settings.network}`) via the x402 protocol — no API key needed.
+per call on {chain} (`{settings.network}`) via the x402 protocol — no API key needed.
 
 ## Paid endpoint
 
@@ -73,7 +74,7 @@ Body (JSON):
 Returns: `title`, `text`, `summary`, `word_count`, `char_count`, `final_url`.
 
 Pay with any x402 v2 client (e.g. `x402-fetch`): call the endpoint, get a 402
-challenge, sign, retry with the payment header. Settlement is USDC on Base.
+challenge, sign, retry with the payment header. Settlement is USDC on {chain}.
 
 ## Free endpoints
 

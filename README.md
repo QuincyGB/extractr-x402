@@ -27,6 +27,10 @@ X402_NETWORK=eip155:84532 .venv/bin/python -m uvicorn app.main:app --port 8000
 # Mainnet mode (real USDC — needs CDP keys, see below):
 # X402_NETWORK=eip155:8453 CDP_API_KEY_ID=... CDP_API_KEY_SECRET=... \
 #   .venv/bin/python -m uvicorn app.main:app --port 8000
+
+# Arc mainnet mode (real USDC on Circle's Arc, keyless public facilitator):
+# X402_NETWORK=eip155:5042 X402_SERVICE_NAME=extractr-arc \
+#   .venv/bin/python -m uvicorn app.main:app --port 8000
 ```
 
 Unpaid call → `402 Payment Required` with a `payment-required` header:

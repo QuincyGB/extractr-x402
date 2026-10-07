@@ -1,6 +1,6 @@
 """Extractr — x402 pay-per-call web content extraction API.
 
-Paid:   POST /v1/extract   (USDC on Base, via x402 v2 "exact" scheme)
+Paid:   POST /v1/extract   (USDC via x402 v2 "exact" scheme; chain from X402_NETWORK)
 Free:   GET  /health, /quote, /.well-known/x402, /skill.md, /llms.txt
 """
 
@@ -48,6 +48,7 @@ settings = load_settings()  # raises if payout wallet is a placeholder
 # --- x402 wiring -------------------------------------------------------------
 # Facilitator is network-aware (see config.py):
 #   Base mainnet  -> CDP facilitator (needs CDP_API_KEY_ID/SECRET)
+#   Arc mainnet   -> ultravioletadao public facilitator (no keys)
 #   Base Sepolia  -> public x402.org facilitator (no keys)
 if settings.use_cdp:
     from .cdp_auth import cdp_facilitator_config
@@ -59,7 +60,7 @@ if settings.use_cdp:
     log.info("facilitator: CDP (Base mainnet)")
 else:
     facilitator = HTTPFacilitatorClient(FacilitatorConfig(url=settings.facilitator_url))
-    log.info("facilitator: %s", settings.facilitator_url)
+    log.info("facilitator: %s (%s)", settings.facilitator_url, settings.network)
 
 resource_server = x402ResourceServer(facilitator)
 resource_server.register(settings.network, ExactEvmScheme())
