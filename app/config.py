@@ -58,6 +58,16 @@ class Settings:
     max_fetch_bytes: int
     default_summary_sentences: int
     port: int
+    require_payment: bool  # False = open mode (PayGate upstream): skip 402, gate on X-Open-Token
+    open_mode_token: str | None
+
+
+def _parse_bool(raw: str, default: bool) -> bool:
+    """Parse a bool env var. Accepts false/0/no/off (case-insensitive) as False."""
+    val = (raw or "").strip().lower()
+    if not val:
+        return default
+    return val not in ("false", "0", "no", "off")
 
 
 def load_settings() -> Settings:
@@ -103,6 +113,19 @@ def load_settings() -> Settings:
     else:
         facilitator_url = PUBLIC_FACILITATOR_URL
 
+    # Open mode (PayGate upstream use-case): REQUIRE_PAYMENT=false skips the
+    # 402 challenge so a wrapping paywall (PayGate) can be the payment layer.
+    # Safety: OPEN_MODE_TOKEN must be set, or the app refuses to start —
+    # this prevents accidentally deploying a free-for-all instance. Requests
+    # must then carry X-Open-Token matching it (see middleware in main.py).
+    require_payment = _parse_bool(os.environ.get("REQUIRE_PAYMENT", ""), True)
+    open_mode_token = os.environ.get("OPEN_MODE_TOKEN", "").strip() or None
+    if not require_payment and not open_mode_token:
+        raise RuntimeError(
+            "REQUIRE_PAYMENT=false requires OPEN_MODE_TOKEN to be set to a "
+            "non-empty value. Refusing to start an unprotected open instance."
+        )
+
     return Settings(
         pay_to=pay_to,
         price_usdc=os.environ.get("X402_PRICE_USDC", "$0.02").strip(),
@@ -116,4 +139,6 @@ def load_settings() -> Settings:
         max_fetch_bytes=int(os.environ.get("X402_MAX_FETCH_BYTES", "2000000")),
         default_summary_sentences=int(os.environ.get("X402_SUMMARY_SENTENCES", "5")),
         port=int(os.environ.get("PORT", "8000")),
+        require_payment=require_payment,
+        open_mode_token=open_mode_token,
     )

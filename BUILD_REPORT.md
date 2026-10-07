@@ -174,3 +174,42 @@ submit a working Arc-mainnet deploy + public repo). Branch `arc` on
 - Microgrant submission: https://dorahacks.io/hackathon/arc-microgrants/detail
   — deploy link + public repo (`QuincyGB/extractr-x402`, branch `arc`).
   Deadline: Oct 14, 2026.
+
+### 6b. Open mode for PayGate upstream (branch `arc`, 2026-10-07)
+
+PayGate wraps upstream APIs behind its own x402 paywall, so a second Arc
+deployment of the same code must NOT demand its own 402 payment (PayGate's
+backend would hit our 402 and the wrapped call would fail). New env-gated
+open mode in `app/config.py` + `app/main.py`:
+
+- `REQUIRE_PAYMENT` (default `"true"`). Set to `"false"` → `POST /v1/extract`
+  skips the 402 challenge entirely and serves extraction directly (a log
+  line records each bypass).
+- `OPEN_MODE_TOKEN` (required when `REQUIRE_PAYMENT=false`): the app
+  **fails fast at startup** if open mode is on but the token is empty —
+  prevents accidentally deploying a free-for-all instance.
+- In open mode, requests must carry header `X-Open-Token` matching
+  `OPEN_MODE_TOKEN`, else **403**. (If PayGate's publisher form turns out
+  not to support custom headers, the owner can drop this check — it is
+  gated on the token being set, which it always is in open mode.)
+
+**Env vars for the open-mode Railway service** (`extractr-arc-open`):
+- `X402_NETWORK=eip155:5042`
+- `X402_PAY_TO=0x097f9685D1e0752bF8B02d61E5Ce9be7eA0FBA7F`
+- `X402_SERVICE_NAME=extractr-arc-open` (≤32 chars)
+- `REQUIRE_PAYMENT=false`
+- `OPEN_MODE_TOKEN=<long random string>` — the owner generates this once
+  (e.g. `openssl rand -hex 32`) and pastes it into PayGate's custom-header
+  field if supported. Never commit it.
+- Do **not** set `CDP_API_KEY_ID/SECRET` (unused on Arc).
+
+**How to verify after deploy:**
+1. `GET /health` → `{"ok":true,"service":"extractr-arc-open"}`
+2. `GET /debug` → `"require_payment": false`
+3. Unpaid `POST /v1/extract` **without** `X-Open-Token` → **403**
+4. Same request **with** `X-Open-Token: <token>` → **200** with extraction
+   (no 402 involved)
+
+Tests: `tests/test_open_mode.py` (6 tests) — 200 with correct header,
+403 without/wrong header, fail-fast without token, default still 402.
+Full suite: 18 passed.

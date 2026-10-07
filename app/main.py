@@ -126,6 +126,17 @@ app = FastAPI(title="extractr", version="1.0.0")
 
 @app.middleware("http")
 async def x402_middleware(request: Request, call_next):
+    if not settings.require_payment:
+        # Open mode (PayGate upstream): PayGate is the paywall, so we skip
+        # the 402 challenge. Requests must still carry the shared header so
+        # random internet traffic can't use the unwalled instance.
+        token = request.headers.get("x-open-token")
+        if not token or token != settings.open_mode_token:
+            return JSONResponse({"error": "forbidden"}, status_code=403)
+        log.info(
+            "open mode: payment bypassed for %s %s", request.method, request.url.path
+        )
+        return await call_next(request)
     return await fastapi_payment_middleware(routes, resource_server)(request, call_next)
 
 
@@ -166,6 +177,7 @@ async def debug():
         "cdp_key_prefix": (settings.cdp_api_key_id or "")[:6] or None,
         "price": settings.price_usdc,
         "payTo": settings.pay_to,
+        "require_payment": settings.require_payment,
     }
 
 
@@ -189,7 +201,8 @@ async def llms(request: Request):
 
 @app.post("/v1/extract")
 async def extract(req: ExtractRequest):
-    """Paid endpoint — unreachable until the x402 middleware verifies payment."""
+    """Paid endpoint — unreachable until the x402 middleware verifies payment
+    (or, in open mode with REQUIRE_PAYMENT=false, until X-Open-Token checks)."""
     try:
         page = await fetch_and_extract(
             req.url,
