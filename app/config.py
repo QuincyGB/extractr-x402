@@ -7,8 +7,11 @@ default would silently route real money nowhere.
 
 from __future__ import annotations
 
+import logging
 import os
 from dataclasses import dataclass
+
+log = logging.getLogger("extractr.config")
 
 # Owner-configured payout wallet (set by the user 2026-10-06).
 # Keep this overridable via X402_PAY_TO env var — config value, not buried constant.
@@ -58,7 +61,7 @@ class Settings:
     max_fetch_bytes: int
     default_summary_sentences: int
     port: int
-    require_payment: bool  # False = open mode (PayGate upstream): skip 402, gate on X-Open-Token
+    require_payment: bool  # False = open mode (PayGate upstream): skip 402; optional X-Open-Token gate
     open_mode_token: str | None
 
 
@@ -115,15 +118,15 @@ def load_settings() -> Settings:
 
     # Open mode (PayGate upstream use-case): REQUIRE_PAYMENT=false skips the
     # 402 challenge so a wrapping paywall (PayGate) can be the payment layer.
-    # Safety: OPEN_MODE_TOKEN must be set, or the app refuses to start —
-    # this prevents accidentally deploying a free-for-all instance. Requests
-    # must then carry X-Open-Token matching it (see middleware in main.py).
+    # OPEN_MODE_TOKEN is optional: when set, requests must carry X-Open-Token
+    # matching it (see middleware in main.py); when unset, the instance serves
+    # openly and we log a warning — PayGate is the paywall in that setup.
     require_payment = _parse_bool(os.environ.get("REQUIRE_PAYMENT", ""), True)
     open_mode_token = os.environ.get("OPEN_MODE_TOKEN", "").strip() or None
     if not require_payment and not open_mode_token:
-        raise RuntimeError(
-            "REQUIRE_PAYMENT=false requires OPEN_MODE_TOKEN to be set to a "
-            "non-empty value. Refusing to start an unprotected open instance."
+        log.warning(
+            "open mode without token — upstream relies on PayGate paywall; "
+            "do not expose this instance directly to the public internet."
         )
 
     return Settings(
