@@ -37,7 +37,13 @@ def x402_manifest(settings: Settings, base_url: str) -> dict:
                 "price": settings.price_usdc,
                 "scheme": "exact",
                 "mimeType": "application/json",
-                "description": "Extract page text + summary (paid)",
+                "description": (
+                    "Turn any public web page into clean readable text + "
+                    "extractive summary as JSON. Returns title, markdown-ready "
+                    "text, word count and summary. Built for AI research agents "
+                    "— no API key, no signup, $0.02 USDC per call."
+                ),
+                "tags": ["extraction", "research", "web-scraping", "summarization", "agents"],
                 # accepts[] mirrors the live 402 challenge so directory
                 # validators (Agent Bazaar, x402scan) accept the manifest.
                 "accepts": [
