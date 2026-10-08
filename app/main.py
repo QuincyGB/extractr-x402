@@ -16,7 +16,7 @@ from x402.http.middleware import fastapi_payment_middleware
 from x402.mechanisms.evm.exact.server import ExactEvmScheme
 from x402.server import x402ResourceServer
 
-from .config import load_settings
+from .config import BASE_MAINNET, load_settings
 from .discovery import llms_txt, skill_md, x402_manifest
 from .extractor import FetchError, fetch_and_extract
 
@@ -64,6 +64,10 @@ else:
 
 resource_server = x402ResourceServer(facilitator)
 resource_server.register(settings.network, ExactEvmScheme())
+# Base as a second settlement network: same keyless facilitator, same wallet.
+# Buyers pick whichever network suits them; Arc stays for the grant story.
+if settings.network != BASE_MAINNET:
+    resource_server.register(BASE_MAINNET, ExactEvmScheme())
 
 EXTRACT_DESCRIPTION = (
     "Extract clean readable text and an extractive summary from any public web "
@@ -79,7 +83,20 @@ routes = {
                 pay_to=settings.pay_to,
                 price=settings.price_usdc,
                 network=settings.network,
-            )
+            ),
+            # Base as a second payment rail (same wallet, same price).
+            *(
+                [
+                    PaymentOption(
+                        scheme="exact",
+                        pay_to=settings.pay_to,
+                        price=settings.price_usdc,
+                        network=BASE_MAINNET,
+                    )
+                ]
+                if settings.network != BASE_MAINNET
+                else []
+            ),
         ],
         description=EXTRACT_DESCRIPTION,
         mime_type="application/json",

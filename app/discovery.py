@@ -6,7 +6,7 @@ live 402 responses, so they must stay consistent with main.py pricing.
 
 from __future__ import annotations
 
-from .config import Settings, NETWORK_LABELS
+from .config import Settings, NETWORK_LABELS, BASE_MAINNET
 
 
 # x402 v2 "exact"-scheme asset for USDC (6 decimals). This is the canonical
@@ -46,15 +46,17 @@ def x402_manifest(settings: Settings, base_url: str) -> dict:
                 "tags": ["extraction", "research", "web-scraping", "summarization", "agents"],
                 # accepts[] mirrors the live 402 challenge so directory
                 # validators (Agent Bazaar, x402scan) accept the manifest.
+                # Arc + Base: same wallet, same price, buyer picks a network.
                 "accepts": [
                     {
                         "scheme": "exact",
-                        "network": settings.network,
+                        "network": net,
                         "amount": _price_to_units(settings.price_usdc),
                         "asset": USDC_ASSET,
                         "payTo": settings.pay_to,
                         "maxTimeoutSeconds": 300,
                     }
+                    for net in dict.fromkeys((settings.network, BASE_MAINNET))
                 ],
                 "inputSchema": {
                     "type": "object",

@@ -131,7 +131,7 @@ def load_settings() -> Settings:
 
     return Settings(
         pay_to=pay_to,
-        price_usdc=os.environ.get("X402_PRICE_USDC", "$0.02").strip(),
+        price_usdc=os.environ.get("X402_PRICE_USDC", "$0.003").strip(),
         network=network,
         facilitator_url=facilitator_url,
         use_cdp=use_cdp,
