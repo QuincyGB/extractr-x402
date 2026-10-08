@@ -9,6 +9,16 @@ from __future__ import annotations
 from .config import Settings, NETWORK_LABELS
 
 
+# x402 v2 "exact"-scheme asset for USDC (6 decimals). This is the canonical
+# asset address the x402 SDK puts in the live 402 payment-required challenge.
+USDC_ASSET = "0x3600000000000000000000000000000000000000"
+
+
+def _price_to_units(price_usdc: str) -> str:
+    """'$0.02' -> '20000' (USDC smallest units, 6 decimals)."""
+    return str(int(round(float(price_usdc.replace("$", "").strip()) * 1_000_000)))
+
+
 def x402_manifest(settings: Settings, base_url: str) -> dict:
     return {
         "x402Version": 2,
@@ -28,6 +38,18 @@ def x402_manifest(settings: Settings, base_url: str) -> dict:
                 "scheme": "exact",
                 "mimeType": "application/json",
                 "description": "Extract page text + summary (paid)",
+                # accepts[] mirrors the live 402 challenge so directory
+                # validators (Agent Bazaar, x402scan) accept the manifest.
+                "accepts": [
+                    {
+                        "scheme": "exact",
+                        "network": settings.network,
+                        "amount": _price_to_units(settings.price_usdc),
+                        "asset": USDC_ASSET,
+                        "payTo": settings.pay_to,
+                        "maxTimeoutSeconds": 300,
+                    }
+                ],
                 "inputSchema": {
                     "type": "object",
                     "required": ["url"],

@@ -186,6 +186,9 @@ async def debug():
 @app.get("/.well-known/x402")
 async def well_known(request: Request):
     base = str(request.base_url).rstrip("/")
+    # Railway terminates TLS at the edge; indexers need the public https URL.
+    if base.startswith("http://"):
+        base = "https://" + base[len("http://"):]
     return JSONResponse(x402_manifest(settings, base))
 
 
